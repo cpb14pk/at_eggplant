@@ -1,0 +1,40 @@
+name: Manual Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environmentName:
+        description: Github Environment name to deploy to
+        required: true
+        default: Test
+
+jobs:
+  Manual-Deployment:
+    name: Deploy Branch to Manual Auth Org
+    runs-on: ubuntu-20.04
+    environment:
+      name: ${{ github.event.inputs.environmentName }}
+
+    steps:
+      - name: Source Branch Name
+        run: echo ${{ github.ref }}
+
+      - name: Check out source
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Connect to org
+        uses: sfdx-actions/setup-sfdx@v1
+        with:
+          sfdx-auth-url: ${{ secrets.ORG_AUTH_SECRET }}
+
+      - name: EnvtUrl
+        id: envtUrl
+        run: |
+          sfdx force:org:display --verbose --json > orgDetails.json
+          orgUrl=$(jq '.result.instanceUrl' orgDetails.json | sed 's/^.//;s/.$//')
+          accessToken=$(jq '.result.accessToken' orgDetails.json | sed 's/^.//;s/.$//')
+          frontDoor='/secur/frontdoor.jsp?sid='
+          echo "::set-output name=url_output::"$orgUrl$frontDoor$accessToken
