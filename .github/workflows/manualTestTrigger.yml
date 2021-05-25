@@ -1,40 +1,53 @@
-name: Manual Deployment
+# This workflow uses GitHub actions to run Eggplant DAI tests
 
+name: DAI_Tests
+
+# Controls when the action will run. 
 on:
+  # Triggers the workflow on push or pull request events for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-    inputs:
-      environmentName:
-        description: Github Environment name to deploy to
-        required: true
-        default: Test
 
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  Manual-Deployment:
-    name: Deploy Branch to Manual Auth Org
-    runs-on: ubuntu-20.04
-    environment:
-      name: ${{ github.event.inputs.environmentName }}
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: self-hosted
 
+    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
       - name: Source Branch Name
         run: echo ${{ github.ref }}
-
-      - name: Check out source
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-
-      - name: Connect to org
-        uses: sfdx-actions/setup-sfdx@v1
-        with:
-          sfdx-auth-url: ${{ secrets.ORG_AUTH_SECRET }}
 
       - name: EnvtUrl
         id: envtUrl
         run: |
+          pwd
+          ls -a 
           sfdx force:org:display --verbose --json > orgDetails.json
+          cat orgDetails.json
           orgUrl=$(jq '.result.instanceUrl' orgDetails.json | sed 's/^.//;s/.$//')
           accessToken=$(jq '.result.accessToken' orgDetails.json | sed 's/^.//;s/.$//')
           frontDoor='/secur/frontdoor.jsp?sid='
           echo "::set-output name=url_output::"$orgUrl$frontDoor$accessToken
+          echo name > test.txt
+          cat test.txt
+
+      - name: Run DAI tests
+        run: |
+          echo Running DAI tests
+          pwd
+          ls -a
+          chmod +x DAIRunner
+          ./DAIRunner -v testconfig http://192.168.214.170:8000/ philippa.merrill@eggplantsoftware.com xSQ6fHd6Zm8m IntegrationConfig
+          echo DAI tests complete.
+          
